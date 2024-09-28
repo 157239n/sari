@@ -3,11 +3,11 @@ from aigu.imports import *
 app = flask.Flask(__name__)
 
 def authGuard():
-    loginGuard(); res = cdb.query("select id, userIds, name from groups where app = 'sari'") | apply(op().split(";") | filt("x") | apply(int) | aS(set), 1) | deref()
+    loginGuard(); res = cdb.query("select id, userIds, name from groups where app = 'sari'")
     if session["userId"] not in res | cut(1) | joinSt() | aS(set):
         raise flask.ShortCircuit(f"""<script>alert("{ui.trans('You are not authorized to access this website, please contact whoever gave you the link and tell them to authorize you. Logging out...', 'Bạn không có quyền truy cập trang web này, hãy liên hệ người đưa bạn link và kêu họ thêm quyền truy cập cho bạn. Đang đăng xuất...')}"); window.location = "/logout";</script>""")
     return res | filt(op() != "sari_admin", 2) | deref()
-def isAdmin(): group = cdb["groups"].lookup(name="sari_admin"); return session["userId"] in (group.userIds.split(";") | apply(int) | aS(set))
+def isAdmin(): group = cdb["groups"].lookup(name="sari_admin"); return session["userId"] in group.userIds
 def adminGuard():
     loginGuard()
     if not isAdmin(): raise flask.ShortCircuit(f"""<script>alert("{ui.trans('You are not authorized to access this website, please contact whoever gave you the link and tell them to authorize you. Logging out...', 'Bạn không có quyền truy cập trang web này, hãy liên hệ người đưa bạn link và kêu họ thêm quyền truy cập cho bạn. Đang đăng xuất...')}"); window.location = "/logout";</script>""")
@@ -718,7 +718,7 @@ def getAlloIr():
     missingGs = gs | op().id.all() | ~inSet(actualGs | op().groupId.all() | deref()) | deref()
     for gId in missingGs: db["groupValves"].insert(groupId=gId, valveIds="")
     if len(missingGs): actualGs = db["groupValves"].select("select * from groupValves where groupId in %s", tuple([g.id for g in gs]))
-    return [gs | apply(lambda g: [g.id, [g.name, g.userIds.split(";") | filt("x") | shape(0)]]), actualGs | apply(lambda g: [g.groupId, [g.valveIds]])] | joinSt() | groupBy(0, True) | apply(joinSt(2), 1) | ~apply(lambda x,y: [x,*y]) | deref()
+    return [gs | apply(lambda g: [g.id, [g.name, len(g.userIds)]]), actualGs | apply(lambda g: [g.groupId, [g.valveIds]])] | joinSt() | groupBy(0, True) | apply(joinSt(2), 1) | ~apply(lambda x,y: [x,*y]) | deref()
 def fragment_groups(): ir = getAlloIr(); ui1 = ir | apply(op().split(";") | filt("x") | shape(0), 3) | viz.Table(["idx", ui.trans("Group name", "Tên nhóm"), ui.trans("#Users", "#Người dùng"), ui.trans("#Valves", "#Van")], onclickFName="selectGroup", selectable=True); return f"""
 <div style="display: flex; flex-direction: row; align-items: center">
     <h2>{ui.trans('Groups', 'Nhóm')}</h2>
